@@ -230,32 +230,40 @@ function liqHeader(){
 
 /* ---------- websockets ---------- */
 function setStatus(id,ok){const el=$("#st-"+id); if(el) el.classList.toggle("on",ok)}
-function connect(id,url,onOpen,onMsg,ping){
-  let retry=0,pt;
+function connect(id,urls,onOpen,onMsg,ping){
+  urls=[].concat(urls);
+  let retry=0,pt,idx=0;
   const go=()=>{
-    let ws; try{ws=new WebSocket(url)}catch(e){setTimeout(go,5000);return}
-    ws.onopen=()=>{retry=0;setStatus(id,true);onOpen&&onOpen(ws);if(ping) pt=setInterval(()=>ws.readyState===1&&ws.send("ping"),20000)};
+    const url=urls[idx%urls.length]; let opened=false;
+    let ws; try{ws=new WebSocket(url)}catch(e){idx++;setTimeout(go,3000);return}
+    ws.onopen=()=>{opened=true;retry=0;setStatus(id,true);onOpen&&onOpen(ws);if(ping) pt=setInterval(()=>ws.readyState===1&&ws.send("ping"),20000)};
     ws.onmessage=e=>{if(e.data==="pong") return;try{onMsg(JSON.parse(e.data))}catch(_){}};
-    ws.onclose=()=>{setStatus(id,false);clearInterval(pt);setTimeout(go,Math.min(30000,1000*2**retry++))};
+    ws.onclose=()=>{setStatus(id,false);clearInterval(pt);
+      if(!opened){idx++; if(idx%urls.length) {setTimeout(go,500);return}}
+      setTimeout(go,Math.min(30000,1000*2**retry++))};
     ws.onerror=()=>{try{ws.close()}catch(_){}};
   };
   go();
+}
+let lastBnTick=0;
+function showPrice(c,price,P){
+  const pe=$("#p"+c), el=$("#c"+c); if(!pe||!el||!isFinite(price)) return;
+  pe.textContent=fmtP(price);
+  el.textContent=(P>=0?"+":"")+P.toFixed(2)+"%"; el.className=P>=0?"up":"down";
 }
 const bnCoin=s=>s.endsWith("USDT")?s.slice(0,-4):s.replace(/USDC$|BUSD$/,"");
 
 function connectBinance(){
   const spot=[...COINS.map(c=>c.toLowerCase()+"usdt@aggTrade"),"btcusdt@ticker","ethusdt@ticker"];
-  connect("BNS","wss://stream.binance.com:9443/stream?streams="+spot.join("/"),null,m=>{
+  const q="/stream?streams="+spot.join("/");
+  connect("BNS",["wss://stream.binance.com:9443"+q,"wss://stream.binance.com:443"+q,"wss://data-stream.binance.vision"+q],null,m=>{
     const d=m.data; if(!d) return;
     if(d.e==="aggTrade") trade("BN-S",bnCoin(d.s),+d.p,+d.q,d.m?"sell":"buy",d.T);
-    else if(d.e==="24hrTicker"){
-      const c=bnCoin(d.s), P=+d.P;
-      $("#p"+c).textContent=fmtP(+d.c);
-      const el=$("#c"+c); el.textContent=(P>=0?"+":"")+P.toFixed(2)+"%"; el.className=P>=0?"up":"down";
-    }
+    else if(d.e==="24hrTicker"){lastBnTick=Date.now();showPrice(bnCoin(d.s),+d.c,+d.P)}
   });
   const fut=[...COINS.map(c=>c.toLowerCase()+"usdt@aggTrade"),"!forceOrder@arr"];
-  connect("BNF","wss://fstream.binance.com/stream?streams="+fut.join("/"),null,m=>{
+  const qf="/stream?streams="+fut.join("/");
+  connect("BNF",["wss://fstream.binance.com"+qf,"wss://fstream.binance.com:443"+qf],null,m=>{
     const d=m.data; if(!d) return;
     if(d.e==="aggTrade") trade("BN-F",bnCoin(d.s),+d.p,+d.q,d.m?"sell":"buy",d.T);
     else if(d.e==="forceOrder"){
@@ -273,13 +281,17 @@ function loadCT(){
     .catch(()=>{});
 }
 function connectOKX(){
-  connect("OKX","wss://ws.okx.com:8443/ws/v5/public",ws=>{
+  connect("OKX",["wss://ws.okx.com:8443/ws/v5/public","wss://ws.okx.com/ws/v5/public","wss://wsaws.okx.com:8443/ws/v5/public"],ws=>{
     const msgs=COINS.map(c=>({op:"subscribe",args:[{channel:"trades",instId:c+"-USDT"},{channel:"trades",instId:c+"-USDT-SWAP"}]}));
     msgs.push({op:"subscribe",args:[{channel:"liquidation-orders",instType:"SWAP"}]});
+    msgs.push({op:"subscribe",args:[{channel:"tickers",instId:"BTC-USDT"},{channel:"tickers",instId:"ETH-USDT"}]});
     msgs.forEach((m,i)=>setTimeout(()=>ws.readyState===1&&ws.send(JSON.stringify(m)),i*150));
   },m=>{
     if(!m.arg||!m.data) return;
-    if(m.arg.channel==="trades"){
+    if(m.arg.channel==="tickers"){
+      if(Date.now()-lastBnTick<15000) return;
+      for(const d of m.data){const last=+d.last,open=+d.open24h;showPrice(d.instId.split("-")[0],last,open?(last-open)/open*100:0)}
+    } else if(m.arg.channel==="trades"){
       for(const d of m.data){
         const inst=d.instId, p=inst.split("-"); if(p[1]!=="USDT") continue;
         const swap=inst.endsWith("-SWAP");
