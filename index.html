@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0f17">
+<title>Whale Terminal</title>
+<style>
+:root{--bg:#0b0f17;--panel:#0f1622;--card:#151d2b;--line:#243044;--text:#e5e7eb;--muted:#8b98ad;--green:#22c55e;--red:#ef4444;--yellow:#f5b83d;--blue:#6d83ff;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:860px;margin:0 auto;padding:14px 16px 70px}
+h1{font-size:22px;margin:0;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+#clock{font:14px var(--mono);color:var(--muted);font-weight:400}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;margin-top:16px}
+.lbl{font:11px var(--mono);letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:3px}
+.big{font:19px var(--mono);word-break:break-word}
+.up{color:var(--green)}.down{color:var(--red)}.warn{color:var(--yellow)}.muted{color:var(--muted)}
+.bar{height:8px;border-radius:6px;background:var(--line);overflow:hidden;display:flex;margin-top:8px;max-width:340px}
+.bar b{display:block;height:100%}
+.status{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:16px;font-size:13px;color:var(--muted)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--red);margin-right:6px;vertical-align:middle}
+.dot.on{background:var(--green)}
+.tools{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+button,.btn{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font:inherit;font-size:14px;cursor:pointer}
+button.on{border-color:var(--blue);background:#1a2240}
+.tabs{display:flex;gap:4px;margin:22px 0 14px;border-bottom:1px solid var(--line);padding-top:14px;border-top:1px solid var(--line)}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;border-radius:0;padding:10px 14px;color:var(--muted);font-size:16px;font-weight:600}
+.tabs button.on{color:var(--text);border-bottom-color:var(--blue)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+input,select{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font:inherit;font-size:14px;min-width:0}
+#fq{flex:1 1 180px}#fmin{width:140px}
+.chip{border-radius:20px;padding:7px 13px;font-size:13px}
+.chk{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px;margin:4px 0 14px}
+.chk input{width:18px;height:18px}
+.box{border:1px solid var(--line);border-radius:14px;background:var(--panel);margin-bottom:16px;overflow:hidden}
+.bh{display:flex;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:700}
+.bh span:last-child{font-weight:400;color:var(--muted);font-size:14px}
+.bd{padding:12px 14px}
+.sig{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;background:var(--card);padding:12px 14px;margin-top:12px}
+.sh{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.st{color:var(--c);font-size:16px}
+.tag{border:1px solid var(--line);border-radius:7px;padding:1px 7px;font-size:12px;color:var(--muted)}
+.sm{font:12px var(--mono);color:var(--muted);margin-top:4px}
+.sig p{margin:8px 0}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;font-family:var(--mono);font-size:14px;padding-bottom:10px;border-bottom:1px dashed var(--line)}
+.kv div span{display:block;font-size:10.5px;letter-spacing:.08em;color:var(--muted)}
+.score{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13px;color:var(--muted)}
+.score i{flex:1;max-width:160px;height:6px;background:var(--line);border-radius:4px;overflow:hidden}
+.score i b{display:block;height:100%;background:var(--c)}
+.g{font:700 11px var(--mono);padding:3px 8px;border-radius:6px;background:var(--line);color:var(--text)}
+.g-KUAT{background:#3b1d6e}.g-SEDANG{background:#4a3a12}
+.note{font-size:14px;margin-top:8px}
+.btns{display:flex;gap:8px;margin-top:10px}
+.btns a{color:var(--blue);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:14px}
+.lrow{display:flex;justify-content:space-between;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:14px}
+.lrow:last-child{border:0}
+.lrow small{color:var(--muted);font-family:var(--mono)}
+.empty{color:var(--muted);text-align:center;padding:18px 0}
+.warmup{color:var(--yellow);font-size:13px}
+.day{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:14px 16px;margin-bottom:12px}
+.day h3{margin:0 0 10px;font-size:16px}
+.dg{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 16px;font-family:var(--mono);font-size:14px}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:16px;width:min(420px,92vw);padding:18px}
+dialog::backdrop{background:#000a}
+dialog h3{margin:0 0 12px}
+dialog label{display:block;font-size:13px;color:var(--muted);margin-bottom:10px}
+dialog input{display:block;width:100%;margin-top:4px}
+dialog menu{display:flex;justify-content:flex-end;gap:8px;padding:0;margin:14px 0 0}
+.foot{color:var(--muted);font-size:12px;margin-top:24px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Whale Terminal <span id="clock">--.--.-- WIB</span></h1>
+
+<div class="grid">
+  <div><div class="lbl">BTC</div><div class="big"><span id="pBTC">–</span> <span id="cBTC"></span></div></div>
+  <div><div class="lbl">ETH</div><div class="big"><span id="pETH">–</span> <span id="cETH"></span></div></div>
+  <div><div class="lbl">Fear &amp; Greed</div><div class="big" id="fng">–</div></div>
+  <div><div class="lbl">Likuidasi 60 mnt · Long / Short</div><div class="big"><span class="down" id="lL">$0</span> / <span class="up" id="lS">$0</span></div><div class="bar"><b id="bL" style="background:var(--red);width:0"></b><b id="bS" style="background:var(--green);width:0"></b></div></div>
+</div>
+
+<div class="status">
+  <span><i class="dot" id="st-BNF"></i>Binance Futures</span>
+  <span><i class="dot" id="st-BNS"></i>Binance Spot</span>
+  <span><i class="dot" id="st-OKX"></i>OKX</span>
+</div>
+<div class="tools">
+  <button id="btnNotif">🔔 Notif</button>
+  <button id="btnSound">🔊 Bunyi</button>
+  <button id="btnTh">⚙️ Threshold</button>
+</div>
+
+<div class="tabs">
+  <button data-tab="live" class="on">Live</button>
+  <button data-tab="hist">Riwayat</button>
+  <button data-tab="daily">Ringkasan harian</button>
+</div>
+
+<div id="filterBox">
+  <div class="filters">
+    <input id="fq" placeholder="Cari coin, mis. BTC" autocomplete="off">
+  </div>
+  <div class="filters" id="chips"></div>
+  <div class="filters">
+    <select id="fdir">
+      <option value="all">Semua arah</option>
+      <option value="buy">Beli</option>
+      <option value="sell">Jual</option>
+      <option value="mix">Campuran</option>
+    </select>
+    <input id="fmin" type="number" min="0" placeholder="Nilai min $">
+  </div>
+  <label class="chk"><input type="checkbox" id="fstrong"> Hanya skor ≥ 45 (SEDANG/KUAT)</label>
+</div>
+
+<div id="view"></div>
+<div class="foot">Data publik Binance &amp; OKX. Sinyal = aktivitas besar, bukan rekomendasi beli/jual.</div>
+</div>
+
+<dialog id="dlg">
+  <form method="dialog" id="frm">
+    <h3>Pengaturan Threshold</h3>
+    <label>Transaksi tunggal minimum (USD)<input name="single" type="number" min="1000" step="1000"></label>
+    <label>Lonjakan volume: kelipatan rata-rata (×)<input name="mult" type="number" min="2" step="1"></label>
+    <label>Lonjakan volume: nilai minimum per menit (USD)<input name="spikeMin" type="number" min="1000" step="1000"></label>
+    <label>Feed likuidasi: nilai minimum (USD)<input name="liqMin" type="number" min="0" step="1000"></label>
+    <label>Notif &amp; bunyi untuk skor minimal (0–100)<input name="notifScore" type="number" min="0" max="100"></label>
+    <label>Daftar coin (pisahkan koma)<input name="coins" type="text"></label>
+    <menu><button value="cancel">Batal</button><button value="ok">Simpan</button></menu>
+  </form>
+</dialog>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const DEF={single:100000,mult:10,spikeMin:50000,liqMin:10000,notifScore:60,notif:false,sound:false,coins:"BTC,ETH,SOL,XRP,BNB,DOGE,ADA,AVAX,LINK,SUI"};
+const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const S=Object.assign({},DEF,load("wt_settings",{}));
+const saveS=()=>save("wt_settings",S);
+const COINS=S.coins.split(",").map(s=>s.trim().toUpperCase()).filter(Boolean);
+const EX={"BN-S":"Binance Spot","BN-F":"Binance Futures","OKX-S":"OKX Spot","OKX-F":"OKX Futures"};
+const START=Date.now();
+
+let HIST=load("wt_history",[]);
+let liqDay=load("wt_liqday",{});
+const live=[], liq=[], liqFeed=[];
+const B={}, W={};
+let dirtyHist=false, dirtyLiq=false, tab="live";
+const F={q:"",ex:new Set(Object.keys(EX)),dir:"all",min:0,strong:false};
+
+/* ---------- format ---------- */
+const nf=(x,d)=>x.toLocaleString("id-ID",{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmt=v=>v>=1e9?"$"+nf(v/1e9,2)+" M":v>=1e6?"$"+nf(v/1e6,2)+" jt":v>=1e3?"$"+nf(v/1e3,1)+" ribu":"$"+nf(v,0);
+const fmtP=p=>"$"+p.toLocaleString("en-US",{maximumFractionDigits:p>=1000?1:p>=1?4:6});
+const wib=t=>new Date(t).toLocaleTimeString("id-ID",{timeZone:"Asia/Jakarta",hour12:false});
+const dkey=t=>new Date(t).toLocaleDateString("en-CA",{timeZone:"Asia/Jakarta"});
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const DIR={buy:"BELI",sell:"JUAL",mix:"CAMPURAN"};
+const grade=s=>s>=70?"KUAT":s>=45?"SEDANG":"INFO";
+
+/* ---------- signals ---------- */
+function newSig(o){return Object.assign({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),value:0,dir:"mix",score:0,count:1,notified:false},o)}
+const scoreWhale=s=>clamp(Math.round(35+20*Math.log2(s.value/S.single)),0,100);
+function scoreSpike(s){
+  const dom=Math.abs(s.buyShare-.5)*2;
+  return clamp(Math.round(20+15*Math.log2(s.mult/S.mult)+dom*35+(s.value>=1e6?10:0)),0,100);
+}
+const dirOf=sh=>sh>=.6?"buy":sh<=.4?"sell":"mix";
+
+function trade(ex,coin,price,qty,side,ts){
+  if(!(price>0)||!(qty>0)) return;
+  const usd=price*qty;
+  if(usd>=S.single) whale(ex,coin,price,usd,side,ts);
+  const k=ex+"|"+coin, m=Math.floor(ts/60000);
+  let b=B[k];
+  if(!b) b=B[k]={m,vol:0,buy:0,sell:0,p0:price,p1:price,hist:[],sig:null,partial:true};
+  if(m>b.m){
+    if(!b.partial) b.hist.push(b.vol);
+    for(let i=1;i<Math.min(m-b.m,30);i++) b.hist.push(0);
+    if(b.hist.length>30) b.hist=b.hist.slice(-30);
+    Object.assign(b,{m,vol:0,buy:0,sell:0,p0:price,sig:null,partial:false});
+  } else if(m<b.m) return;
+  b.vol+=usd; if(side==="buy") b.buy+=usd; else b.sell+=usd; b.p1=price;
+  if(b.hist.length>=5){
+    const avg=b.hist.reduce((a,c)=>a+c,0)/b.hist.length;
+    const mult=b.vol/Math.max(avg,1);
+    if(b.sig) updSpike(b,mult,false);
+    else if(b.vol>=S.spikeMin&&mult>=S.mult){b.sig=newSig({type:"spike",ex,coin,ts,price});updSpike(b,mult,true)}
+  }
+}
+function updSpike(b,mult,isNew){
+  const s=b.sig;
+  s.value=b.vol; s.mult=mult; s.buyShare=b.buy/(b.buy+b.sell||1);
+  s.dir=dirOf(s.buyShare); s.chg=(b.p1-b.p0)/b.p0*100; s.price=b.p1;
+  s.score=scoreSpike(s); postSig(s,isNew);
+}
+function whale(ex,coin,price,usd,side,ts){
+  const k=ex+"|"+coin+"|"+side, w=W[k];
+  if(w&&ts-w.ts<15000){w.value+=usd;w.count++;w.price=price;w.score=scoreWhale(w);postSig(w,false);return}
+  const s=newSig({type:"whale",ex,coin,ts,price,dir:side}); s.value=usd; s.score=scoreWhale(s);
+  W[k]=s; postSig(s,true);
+}
+function postSig(s,isNew){
+  if(isNew){
+    live.unshift(s); if(live.length>300) live.length=300;
+    HIST.push(s); if(HIST.length>2000) HIST.splice(0,HIST.length-2000);
+  }
+  if(!s.notified&&s.score>=S.notifScore){s.notified=true;notify(s);beep(s.dir)}
+  dirtyHist=true; schedule();
+}
+
+/* ---------- liquidations ---------- */
+function addLiq(src,coin,side,usd,ts){
+  if(!(usd>0)||!isFinite(usd)) return;
+  liq.push({ts,side,usd});
+  const d=dkey(ts), o=liqDay[d]||(liqDay[d]={long:0,short:0}); o[side]+=usd; dirtyLiq=true;
+  if(usd>=S.liqMin){liqFeed.unshift({ts,coin,src,side,usd}); if(liqFeed.length>100) liqFeed.length=100; schedule()}
+}
+function liqHeader(){
+  const cut=Date.now()-3600000; while(liq.length&&liq[0].ts<cut) liq.shift();
+  let L=0,Sh=0; for(const x of liq) x.side==="long"?L+=x.usd:Sh+=x.usd;
+  $("#lL").textContent=fmt(L); $("#lS").textContent=fmt(Sh);
+  const t=L+Sh||1; $("#bL").style.width=(L/t*100)+"%"; $("#bS").style.width=(Sh/t*100)+"%";
+}
+
+/* ---------- websockets ---------- */
+function setStatus(id,ok){const el=$("#st-"+id); if(el) el.classList.toggle("on",ok)}
+function connect(id,url,onOpen,onMsg,ping){
+  let retry=0,pt;
+  const go=()=>{
+    let ws; try{ws=new WebSocket(url)}catch(e){setTimeout(go,5000);return}
+    ws.onopen=()=>{retry=0;setStatus(id,true);onOpen&&onOpen(ws);if(ping) pt=setInterval(()=>ws.readyState===1&&ws.send("ping"),20000)};
+    ws.onmessage=e=>{if(e.data==="pong") return;try{onMsg(JSON.parse(e.data))}catch(_){}};
+    ws.onclose=()=>{setStatus(id,false);clearInterval(pt);setTimeout(go,Math.min(30000,1000*2**retry++))};
+    ws.onerror=()=>{try{ws.close()}catch(_){}};
+  };
+  go();
+}
+const bnCoin=s=>s.endsWith("USDT")?s.slice(0,-4):s.replace(/USDC$|BUSD$/,"");
+
+function connectBinance(){
+  const spot=[...COINS.map(c=>c.toLowerCase()+"usdt@aggTrade"),"btcusdt@ticker","ethusdt@ticker"];
+  connect("BNS","wss://stream.binance.com:9443/stream?streams="+spot.join("/"),null,m=>{
+    const d=m.data; if(!d) return;
+    if(d.e==="aggTrade") trade("BN-S",bnCoin(d.s),+d.p,+d.q,d.m?"sell":"buy",d.T);
+    else if(d.e==="24hrTicker"){
+      const c=bnCoin(d.s), P=+d.P;
+      $("#p"+c).textContent=fmtP(+d.c);
+      const el=$("#c"+c); el.textContent=(P>=0?"+":"")+P.toFixed(2)+"%"; el.className=P>=0?"up":"down";
+    }
+  });
+  const fut=[...COINS.map(c=>c.toLowerCase()+"usdt@aggTrade"),"!forceOrder@arr"];
+  connect("BNF","wss://fstream.binance.com/stream?streams="+fut.join("/"),null,m=>{
+    const d=m.data; if(!d) return;
+    if(d.e==="aggTrade") trade("BN-F",bnCoin(d.s),+d.p,+d.q,d.m?"sell":"buy",d.T);
+    else if(d.e==="forceOrder"){
+      const o=d.o, usd=(+o.ap||+o.p)*(+o.z||+o.q);
+      addLiq("Binance",bnCoin(o.s),o.S==="SELL"?"long":"short",usd,o.T||d.E);
+    }
+  });
+}
+
+const CT={"BTC-USDT-SWAP":0.01,"ETH-USDT-SWAP":0.1,"SOL-USDT-SWAP":1,"XRP-USDT-SWAP":100,"DOGE-USDT-SWAP":1000};
+function loadCT(){
+  const ctrl=new AbortController(); setTimeout(()=>ctrl.abort(),6000);
+  return fetch("https://www.okx.com/api/v5/public/instruments?instType=SWAP",{signal:ctrl.signal})
+    .then(r=>r.json()).then(j=>{(j.data||[]).forEach(i=>{if(i.ctValCcy&&i.instId.endsWith("-USDT-SWAP")) CT[i.instId]=+i.ctVal})})
+    .catch(()=>{});
+}
+function connectOKX(){
+  connect("OKX","wss://ws.okx.com:8443/ws/v5/public",ws=>{
+    const msgs=COINS.map(c=>({op:"subscribe",args:[{channel:"trades",instId:c+"-USDT"},{channel:"trades",instId:c+"-USDT-SWAP"}]}));
+    msgs.push({op:"subscribe",args:[{channel:"liquidation-orders",instType:"SWAP"}]});
+    msgs.forEach((m,i)=>setTimeout(()=>ws.readyState===1&&ws.send(JSON.stringify(m)),i*150));
+  },m=>{
+    if(!m.arg||!m.data) return;
+    if(m.arg.channel==="trades"){
+      for(const d of m.data){
+        const inst=d.instId, p=inst.split("-"); if(p[1]!=="USDT") continue;
+        const swap=inst.endsWith("-SWAP");
+        if(swap&&!CT[inst]) continue;
+        trade(swap?"OKX-F":"OKX-S",p[0],+d.px,swap?+d.sz*CT[inst]:+d.sz,d.side,+d.ts);
+      }
+    } else if(m.arg.channel==="liquidation-orders"){
+      for(const d of m.data){
+        const ct=CT[d.instId]; if(!ct) continue;
+        for(const x of d.details||[]){
+          const side=x.posSide==="long"?"long":x.posSide==="short"?"short":(x.side==="sell"?"long":"short");
+          addLiq("OKX",d.instId.split("-")[0],side,+x.bkPx*+x.sz*ct,+x.ts);
+        }
+      }
+    }
+  },true);
+}
+
+/* ---------- fear & greed ---------- */
+const FNG={"Extreme Fear":"Takut Ekstrem","Fear":"Takut","Neutral":"Netral","Greed":"Keserakahan","Extreme Greed":"Keserakahan Ekstrem"};
+function loadFNG(){
+  fetch("https://api.alternative.me/fng/?limit=1").then(r=>r.json()).then(j=>{
+    const d=j.data[0], v=+d.value, el=$("#fng");
+    el.textContent=v+" · "+(FNG[d.value_classification]||d.value_classification);
+    el.className="big "+(v<25?"down":v<45?"warn":v<55?"muted":"up");
+  }).catch(()=>{$("#fng").textContent="gagal dimuat"});
+}
+
+/* ---------- notif & sound ---------- */
+function sigTitle(s){return s.type==="whale"?`${s.coin} — Whale ${s.dir==="buy"?"Beli":"Jual"}`:`${s.coin} — Volume Tak Biasa`}
+async function notify(s){
+  if(!S.notif||!("Notification" in window)||Notification.permission!=="granted") return;
+  const title="🐋 "+sigTitle(s), body=`${EX[s.ex]} · ${fmt(s.value)} · ${DIR[s.dir]} · skor ${s.score}`;
+  try{const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();if(reg){reg.showNotification(title,{body,tag:s.id});return}}catch(e){}
+  try{new Notification(title,{body,tag:s.id})}catch(e){}
+}
+let actx=null;
+function beep(dir){
+  if(!S.sound||!actx) return;
+  try{
+    const o=actx.createOscillator(), g=actx.createGain(), t=actx.currentTime;
+    o.frequency.value=dir==="buy"?880:dir==="sell"?330:550; o.type="sine";
+    g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.25,t+.02); g.gain.exponentialRampToValueAtTime(.0001,t+.25);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t+.3);
+  }catch(e){}
+}
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+
+/* ---------- render ---------- */
+function passes(s){
+  return (!F.q||s.coin.includes(F.q))&&F.ex.has(s.ex)&&(F.dir==="all"||s.dir===F.dir)&&s.value>=F.min&&(!F.strong||s.score>=45);
+}
+function claudeUrl(s){
+  const q=`Ada sinyal di Whale Terminal saya: ${sigTitle(s)} di ${EX[s.ex]}, nilai ${fmt(s.value)}, arah ${DIR[s.dir]}, jam ${wib(s.ts)} WIB, harga ${fmtP(s.price)}. Tolong cek kondisi ${s.coin} sekarang (berita, funding rate, open interest, struktur chart) dan jelaskan apa artinya.`;
+  return "https://claude.ai/new?q="+encodeURIComponent(q);
+}
+function chartUrl(s){
+  const pre=s.ex.startsWith("BN")?"BINANCE":"OKX", perp=s.ex.endsWith("-F")?".P":"";
+  return "https://www.tradingview.com/chart/?symbol="+encodeURIComponent(`${pre}:${s.coin}USDT${perp}`);
+}
+function card(s){
+  const col=s.dir==="buy"?"var(--green)":s.dir==="sell"?"var(--red)":"var(--yellow)", g=grade(s.score);
+  let desc,note;
+  if(s.type==="spike"){
+    const chg=s.chg||0, pct=Math.round((s.buyShare||0)*100);
+    desc=`<b>${fmt(s.value)}</b> USDT mengalir dalam <b>1 menit</b> (${Math.round(s.mult)}× rata-rata) · harga ${chg>=0?"+":""}${chg.toFixed(2)}% dalam 1 menit`;
+    note=s.dir==="buy"?`Dominan beli (${pct}% volume). Tekanan beli besar dalam 1 menit.`:s.dir==="sell"?`Dominan jual (${100-pct}% volume). Tekanan jual besar dalam 1 menit.`:"Volume melonjak tapi tanpa arah dominan — pantau saja.";
+  }else{
+    desc=`${s.count>1?s.count+" transaksi besar, total":"Satu transaksi"} <b>${fmt(s.value)}</b> di harga ${fmtP(s.price)}`;
+    note=`${s.dir==="buy"?"Market buy agresif":"Market sell agresif"}${s.count>1?" beruntun dalam 15 detik":""}.`;
+  }
+  if(s.ex.endsWith("-F")) note+=" Di futures: bisa juga penutupan posisi atau hedging.";
+  return `<div class="sig" style="--c:${col}">
+<div class="sh"><b class="st">${esc(sigTitle(s))}</b><span class="tag">${EX[s.ex]}</span></div>
+<div class="sm">${wib(s.ts)} WIB · ${dkey(s.ts)}</div>
+<p>${desc}</p>
+<div class="kv"><div><span>ASET</span>${esc(s.coin)}</div><div><span>ARAH</span>${DIR[s.dir]}</div><div><span>NILAI</span>${fmt(s.value)}</div><div><span>HARGA</span>${fmtP(s.price)}</div><div><span>EXCHANGE</span>${EX[s.ex]}</div><div><span>WAKTU</span>${wib(s.ts)} WIB</div></div>
+<div class="score"><span class="g g-${g}">${g}</span>Skor ${s.score}<i><b style="width:${s.score}%"></b></i></div>
+<div class="note">${note}</div>
+<div class="btns"><a href="${claudeUrl(s)}" target="_blank" rel="noopener">Tanya Claude</a><a href="${chartUrl(s)}" target="_blank" rel="noopener">Chart</a></div>
+</div>`;
+}
+function liqRow(l){
+  return `<div class="lrow"><div><b class="${l.side==="long"?"down":"up"}">${l.side==="long"?"LONG":"SHORT"} terlikuidasi</b> · ${esc(l.coin)}<br><small>${wib(l.ts)} WIB · ${l.src}</small></div><b>${fmt(l.usd)}</b></div>`;
+}
+function renderLive(){
+  const L=live.filter(passes).slice(0,80);
+  const LQ=liqFeed.filter(l=>(!F.q||l.coin.includes(F.q))&&l.usd>=F.min).slice(0,50);
+  const warm=Date.now()-START<6*60000;
+  $("#view").innerHTML=`<section class="box"><div class="bh"><span># whale-sniper</span><span>${L.length} sinyal</span></div><div class="bd">
+<div class="muted">Transaksi besar &amp; volume tak biasa. Hijau = whale beli, merah = whale jual, kuning = campuran.</div>
+${warm?'<div class="warmup">⏳ Pemanasan: deteksi volume tak biasa aktif setelah ±5–6 menit data terkumpul.</div>':""}
+${L.map(card).join("")||'<div class="empty">Belum ada sinyal. Menunggu…</div>'}</div></section>
+<section class="box"><div class="bh"><span># liquidation-feed</span><span>${LQ.length} sinyal</span></div><div class="bd">
+${LQ.map(liqRow).join("")||`<div class="empty">Belum ada likuidasi ≥ ${fmt(S.liqMin)}</div>`}</div></section>`;
+}
+function renderHist(){
+  const L=HIST.filter(passes).slice(-150).reverse();
+  $("#view").innerHTML=`<div class="filters" style="justify-content:space-between;align-items:center"><span class="muted">${HIST.length} sinyal tersimpan di perangkat ini</span><button id="clr">Hapus riwayat</button></div>
+${L.map(card).join("")||'<div class="empty">Riwayat kosong.</div>'}`;
+  $("#clr").onclick=()=>{if(confirm("Hapus semua riwayat sinyal?")){HIST=[];save("wt_history",HIST);render()}};
+}
+function renderDaily(){
+  const D={}, mk=()=>({n:0,kuat:0,buy:0,sell:0,mix:0,val:0,coins:{}});
+  for(const s of HIST){const o=D[dkey(s.ts)]||(D[dkey(s.ts)]=mk());o.n++;if(s.score>=70)o.kuat++;o[s.dir]++;o.val+=s.value;o.coins[s.coin]=(o.coins[s.coin]||0)+s.value}
+  for(const d in liqDay) D[d]=D[d]||mk();
+  const days=Object.keys(D).sort().reverse();
+  $("#view").innerHTML=days.map(d=>{
+    const o=D[d], lq=liqDay[d]||{long:0,short:0};
+    const top=Object.entries(o.coins).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([c,v])=>`${esc(c)} ${fmt(v)}`).join(", ")||"–";
+    const bias=o.buy>o.sell*1.2?'<span class="up">Beli</span>':o.sell>o.buy*1.2?'<span class="down">Jual</span>':'<span class="warn">Seimbang</span>';
+    const tgl=new Date(d+"T12:00:00+07:00").toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric",timeZone:"Asia/Jakarta"});
+    return `<div class="day"><h3>${tgl}</h3><div class="dg">
+<div><div class="lbl">Sinyal</div>${o.n} (${o.kuat} kuat)</div>
+<div><div class="lbl">Beli / Jual / Campur</div><span class="up">${o.buy}</span> / <span class="down">${o.sell}</span> / <span class="warn">${o.mix}</span></div>
+<div><div class="lbl">Bias whale</div>${bias}</div>
+<div><div class="lbl">Total nilai</div>${fmt(o.val)}</div>
+<div><div class="lbl">Likuidasi Long / Short</div><span class="down">${fmt(lq.long)}</span> / <span class="up">${fmt(lq.short)}</span></div>
+<div><div class="lbl">Top coin</div>${top}</div></div></div>`;
+  }).join("")||'<div class="empty">Belum ada data harian.</div>';
+}
+function render(){
+  $("#filterBox").style.display=tab==="daily"?"none":"";
+  if(tab==="live") renderLive(); else if(tab==="hist") renderHist(); else renderDaily();
+}
+let rT=null;
+function schedule(){if(!rT) rT=setTimeout(()=>{rT=null;if(tab!=="hist") render()},800)}
+
+/* ---------- UI ---------- */
+const chips=$("#chips");
+chips.innerHTML=Object.entries(EX).map(([k,v])=>`<button class="chip on" data-ex="${k}">${v}</button>`).join("");
+chips.onclick=e=>{const b=e.target.closest("[data-ex]");if(!b) return;const k=b.dataset.ex;F.ex.has(k)?F.ex.delete(k):F.ex.add(k);b.classList.toggle("on");render()};
+$("#fq").oninput=e=>{F.q=e.target.value.trim().toUpperCase();render()};
+$("#fdir").onchange=e=>{F.dir=e.target.value;render()};
+$("#fmin").oninput=e=>{F.min=+e.target.value||0;render()};
+$("#fstrong").onchange=e=>{F.strong=e.target.checked;render()};
+document.querySelector(".tabs").onclick=e=>{
+  const b=e.target.closest("[data-tab]");if(!b) return;tab=b.dataset.tab;
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x===b));render();
+};
+const syncBtns=()=>{$("#btnNotif").classList.toggle("on",S.notif);$("#btnSound").classList.toggle("on",S.sound)};
+$("#btnNotif").onclick=async()=>{
+  if(S.notif){S.notif=false;saveS();syncBtns();return}
+  if(!("Notification" in window)){alert("Browser ini tidak mendukung notifikasi. Di iPhone, tambahkan web ke Home Screen dulu.");return}
+  const p=await Notification.requestPermission();
+  if(p==="granted"){S.notif=true;saveS();syncBtns();notify({id:"test",type:"whale",coin:"TES",ex:"BN-S",value:S.single,dir:"buy",score:100})}
+  else alert("Izin notifikasi ditolak. Aktifkan lewat pengaturan situs di browser.");
+};
+$("#btnSound").onclick=()=>{
+  S.sound=!S.sound;saveS();syncBtns();
+  if(S.sound){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume();beep("buy")}catch(e){}}
+};
+document.addEventListener("click",()=>{if(S.sound&&!actx){try{actx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}},{once:true});
+const dlg=$("#dlg"), frm=$("#frm");
+$("#btnTh").onclick=()=>{for(const k of ["single","mult","spikeMin","liqMin","notifScore","coins"]) frm.elements[k].value=S[k];dlg.showModal()};
+dlg.addEventListener("close",()=>{
+  if(dlg.returnValue!=="ok") return;
+  const oldCoins=S.coins;
+  for(const k of ["single","mult","spikeMin","liqMin","notifScore"]){const v=+frm.elements[k].value;if(v>=0) S[k]=v}
+  S.coins=frm.elements.coins.value.split(",").map(s=>s.trim().toUpperCase()).filter(Boolean).join(",")||DEF.coins;
+  saveS();
+  if(S.coins!==oldCoins) location.reload(); else render();
+});
+
+/* ---------- loops ---------- */
+setInterval(()=>{$("#clock").textContent=wib(Date.now())+" WIB";liqHeader()},1000);
+setInterval(()=>{
+  if(dirtyHist){dirtyHist=false;save("wt_history",HIST)}
+  if(dirtyLiq){dirtyLiq=false;const keep=Object.keys(liqDay).sort().slice(-30);liqDay=Object.fromEntries(keep.map(k=>[k,liqDay[k]]));save("wt_liqday",liqDay)}
+},3000);
+setInterval(loadFNG,30*60000);
+
+syncBtns(); render(); loadFNG(); connectBinance(); loadCT().finally(connectOKX);
+</script>
+</body>
+</html>
