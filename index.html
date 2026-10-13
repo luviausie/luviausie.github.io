@@ -86,6 +86,7 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;padding:0;margin:14px 
   <span><i class="dot" id="st-BNF"></i>Binance Futures</span>
   <span><i class="dot" id="st-BNS"></i>Binance Spot</span>
   <span><i class="dot" id="st-OKX"></i>OKX</span>
+  <span><i class="dot" id="st-HL"></i>Hyperliquid</span>
 </div>
 <div class="tools">
   <button id="btnNotif">🔔 Notif</button>
@@ -117,7 +118,7 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;padding:0;margin:14px 
 </div>
 
 <div id="view"></div>
-<div class="foot">Data publik Binance &amp; OKX. Sinyal = aktivitas besar, bukan rekomendasi beli/jual.</div>
+<div class="foot">Data publik Binance, OKX &amp; Hyperliquid. Sinyal = aktivitas besar, bukan rekomendasi beli/jual.</div>
 </div>
 
 <dialog id="dlg">
@@ -129,6 +130,10 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;padding:0;margin:14px 
     <label>Feed likuidasi: nilai minimum (USD)<input name="liqMin" type="number" min="0" step="1000"></label>
     <label>Notif &amp; bunyi untuk skor minimal (0–100)<input name="notifScore" type="number" min="0" max="100"></label>
     <label>Daftar coin (pisahkan koma)<input name="coins" type="text"></label>
+    <div class="lbl" style="margin-top:6px">Sumber data</div>
+    <label class="chk" style="margin:4px 0"><input type="checkbox" name="src_BN"> Binance (Spot + Futures)</label>
+    <label class="chk" style="margin:4px 0"><input type="checkbox" name="src_OKX"> OKX (Spot + Futures)</label>
+    <label class="chk" style="margin:4px 0"><input type="checkbox" name="src_HL"> Hyperliquid (DEX Perp)</label>
     <menu><button value="cancel">Batal</button><button value="ok">Simpan</button></menu>
   </form>
 </dialog>
@@ -136,13 +141,14 @@ dialog menu{display:flex;justify-content:flex-end;gap:8px;padding:0;margin:14px 
 <script>
 "use strict";
 const $=s=>document.querySelector(s);
-const DEF={single:100000,mult:10,spikeMin:50000,liqMin:10000,notifScore:60,notif:false,sound:false,coins:"BTC,ETH,SOL,XRP,BNB,DOGE,ADA,AVAX,LINK,SUI"};
+const DEF={single:100000,mult:10,spikeMin:50000,liqMin:10000,notifScore:60,notif:false,sound:false,src:{BN:true,OKX:true,HL:true},coins:"BTC,ETH,SOL,XRP,BNB,DOGE,ADA,AVAX,LINK,SUI"};
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const S=Object.assign({},DEF,load("wt_settings",{}));
+S.src=Object.assign({},DEF.src,S.src||{});
 const saveS=()=>save("wt_settings",S);
 const COINS=S.coins.split(",").map(s=>s.trim().toUpperCase()).filter(Boolean);
-const EX={"BN-S":"Binance Spot","BN-F":"Binance Futures","OKX-S":"OKX Spot","OKX-F":"OKX Futures"};
+const EX={"BN-S":"Binance Spot","BN-F":"Binance Futures","OKX-S":"OKX Spot","OKX-F":"OKX Futures","HL-F":"Hyperliquid"};
 const START=Date.now();
 
 let HIST=load("wt_history",[]);
@@ -172,10 +178,10 @@ function scoreSpike(s){
 }
 const dirOf=sh=>sh>=.6?"buy":sh<=.4?"sell":"mix";
 
-function trade(ex,coin,price,qty,side,ts){
+function trade(ex,coin,price,qty,side,ts,addr){
   if(!(price>0)||!(qty>0)) return;
   const usd=price*qty;
-  if(usd>=S.single) whale(ex,coin,price,usd,side,ts);
+  if(usd>=S.single) whale(ex,coin,price,usd,side,ts,addr);
   const k=ex+"|"+coin, m=Math.floor(ts/60000);
   let b=B[k];
   if(!b) b=B[k]={m,vol:0,buy:0,sell:0,p0:price,p1:price,hist:[],sig:null,partial:true};
@@ -199,10 +205,10 @@ function updSpike(b,mult,isNew){
   s.dir=dirOf(s.buyShare); s.chg=(b.p1-b.p0)/b.p0*100; s.price=b.p1;
   s.score=scoreSpike(s); postSig(s,isNew);
 }
-function whale(ex,coin,price,usd,side,ts){
+function whale(ex,coin,price,usd,side,ts,addr){
   const k=ex+"|"+coin+"|"+side, w=W[k];
   if(w&&ts-w.ts<15000){w.value+=usd;w.count++;w.price=price;w.score=scoreWhale(w);postSig(w,false);return}
-  const s=newSig({type:"whale",ex,coin,ts,price,dir:side}); s.value=usd; s.score=scoreWhale(s);
+  const s=newSig({type:"whale",ex,coin,ts,price,dir:side}); if(addr) s.addr=addr; s.value=usd; s.score=scoreWhale(s);
   W[k]=s; postSig(s,true);
 }
 function postSig(s,isNew){
@@ -236,8 +242,8 @@ function connect(id,urls,onOpen,onMsg,ping){
   const go=()=>{
     const url=urls[idx%urls.length]; let opened=false;
     let ws; try{ws=new WebSocket(url)}catch(e){idx++;setTimeout(go,3000);return}
-    ws.onopen=()=>{opened=true;retry=0;setStatus(id,true);onOpen&&onOpen(ws);if(ping) pt=setInterval(()=>ws.readyState===1&&ws.send("ping"),20000)};
-    ws.onmessage=e=>{if(e.data==="pong") return;try{onMsg(JSON.parse(e.data))}catch(_){}};
+    ws.onopen=()=>{opened=true;retry=0;setStatus(id,true);onOpen&&onOpen(ws);if(ping) pt=setInterval(()=>ws.readyState===1&&ws.send(typeof ping==="string"?ping:"ping"),20000)};
+    ws.onmessage=e=>{if(e.data==="pong"||e.data==='{"channel":"pong"}') return;try{onMsg(JSON.parse(e.data))}catch(_){}};
     ws.onclose=()=>{setStatus(id,false);clearInterval(pt);
       if(!opened){idx++; if(idx%urls.length) {setTimeout(go,500);return}}
       setTimeout(go,Math.min(30000,1000*2**retry++))};
@@ -310,6 +316,18 @@ function connectOKX(){
   },true);
 }
 
+function connectHL(){
+  connect("HL","wss://api.hyperliquid.xyz/ws",ws=>{
+    COINS.forEach((c,i)=>setTimeout(()=>ws.readyState===1&&ws.send(JSON.stringify({method:"subscribe",subscription:{type:"trades",coin:c}})),i*100));
+  },m=>{
+    if(m.channel!=="trades"||!Array.isArray(m.data)) return;
+    for(const d of m.data){
+      const side=d.side==="B"?"buy":"sell", u=d.users||[];
+      trade("HL-F",d.coin,+d.px,+d.sz,side,+d.time,side==="buy"?u[0]:u[1]);
+    }
+  },JSON.stringify({method:"ping"}));
+}
+
 /* ---------- fear & greed ---------- */
 const FNG={"Extreme Fear":"Takut Ekstrem","Fear":"Takut","Neutral":"Netral","Greed":"Keserakahan","Extreme Greed":"Keserakahan Ekstrem"};
 function loadFNG(){
@@ -349,6 +367,7 @@ function claudeUrl(s){
   return "https://claude.ai/new?q="+encodeURIComponent(q);
 }
 function chartUrl(s){
+  if(s.ex.startsWith("HL")) return "https://app.hyperliquid.xyz/trade/"+encodeURIComponent(s.coin);
   const pre=s.ex.startsWith("BN")?"BINANCE":"OKX", perp=s.ex.endsWith("-F")?".P":"";
   return "https://www.tradingview.com/chart/?symbol="+encodeURIComponent(`${pre}:${s.coin}USDT${perp}`);
 }
@@ -368,7 +387,7 @@ function card(s){
 <div class="sh"><b class="st">${esc(sigTitle(s))}</b><span class="tag">${EX[s.ex]}</span></div>
 <div class="sm">${wib(s.ts)} WIB · ${dkey(s.ts)}</div>
 <p>${desc}</p>
-<div class="kv"><div><span>ASET</span>${esc(s.coin)}</div><div><span>ARAH</span>${DIR[s.dir]}</div><div><span>NILAI</span>${fmt(s.value)}</div><div><span>HARGA</span>${fmtP(s.price)}</div><div><span>EXCHANGE</span>${EX[s.ex]}</div><div><span>WAKTU</span>${wib(s.ts)} WIB</div></div>
+<div class="kv"><div><span>ASET</span>${esc(s.coin)}</div><div><span>ARAH</span>${DIR[s.dir]}</div><div><span>NILAI</span>${fmt(s.value)}</div><div><span>HARGA</span>${fmtP(s.price)}</div><div><span>EXCHANGE</span>${EX[s.ex]}</div><div><span>WAKTU</span>${wib(s.ts)} WIB</div>${s.addr?`<div><span>WALLET</span><a style="color:var(--blue)" href="https://hypurrscan.io/address/${esc(s.addr)}" target="_blank" rel="noopener">${esc(s.addr.slice(0,6)+"…"+s.addr.slice(-4))}</a></div>`:""}</div>
 <div class="score"><span class="g g-${g}">${g}</span>Skor ${s.score}<i><b style="width:${s.score}%"></b></i></div>
 <div class="note">${note}</div>
 <div class="btns"><a href="${claudeUrl(s)}" target="_blank" rel="noopener">Tanya Claude</a><a href="${chartUrl(s)}" target="_blank" rel="noopener">Chart</a></div>
@@ -446,14 +465,15 @@ $("#btnSound").onclick=()=>{
 };
 document.addEventListener("click",()=>{if(S.sound&&!actx){try{actx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}},{once:true});
 const dlg=$("#dlg"), frm=$("#frm");
-$("#btnTh").onclick=()=>{for(const k of ["single","mult","spikeMin","liqMin","notifScore","coins"]) frm.elements[k].value=S[k];dlg.showModal()};
+$("#btnTh").onclick=()=>{for(const k of ["single","mult","spikeMin","liqMin","notifScore","coins"]) frm.elements[k].value=S[k];for(const k in S.src) frm.elements["src_"+k].checked=S.src[k];dlg.showModal()};
 dlg.addEventListener("close",()=>{
   if(dlg.returnValue!=="ok") return;
-  const oldCoins=S.coins;
+  const oldCoins=S.coins, oldSrc=JSON.stringify(S.src);
+  for(const k in S.src) S.src[k]=frm.elements["src_"+k].checked;
   for(const k of ["single","mult","spikeMin","liqMin","notifScore"]){const v=+frm.elements[k].value;if(v>=0) S[k]=v}
   S.coins=frm.elements.coins.value.split(",").map(s=>s.trim().toUpperCase()).filter(Boolean).join(",")||DEF.coins;
   saveS();
-  if(S.coins!==oldCoins) location.reload(); else render();
+  if(S.coins!==oldCoins||JSON.stringify(S.src)!==oldSrc) location.reload(); else render();
 });
 
 /* ---------- loops ---------- */
@@ -464,7 +484,10 @@ setInterval(()=>{
 },3000);
 setInterval(loadFNG,30*60000);
 
-syncBtns(); render(); loadFNG(); connectBinance(); loadCT().finally(connectOKX);
+syncBtns(); render(); loadFNG(); ["BN","OKX","HL"].forEach(k=>{if(!S.src[k]){const el=$("#st-"+k)||$("#st-BNS");if(k==="BN"){$("#st-BNS").parentNode.style.display="none";$("#st-BNF").parentNode.style.display="none"}else el.parentNode.style.display="none"}});
+if(S.src.BN) connectBinance();
+if(S.src.OKX) loadCT().finally(connectOKX);
+if(S.src.HL) connectHL();
 </script>
 </body>
 </html>
